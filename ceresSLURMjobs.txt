@@ -1,0 +1,48 @@
+It does seem that allocating more memory makes it go faster. 8413043 was going about seven times faster than 8396775.
+That might have been a number of cores issue, but I also know there was a memory difference. They both stopped at the
+same point, which was before completion, but gave exit code 0...
+I don't have a single full scale successful run on SCINet yet...
+A node with 64 cores, and 128G was found for 504 hours right away. Preliminary estimate is 100 hrs for a 12 cycle sim
+
+seed,initSeed,nCyc,date,slurmID,status,runtime,notes
+12345,720903897,6,Sun Dec 22 12:19:41 2022,8396763,running,NA,Running very slowly: 2.8hrs for first budget.
+45123,528066380,6,Fri Dec 23 21:45:56 2022,8405788,canceled,Asked for 96 cores and 4G, wasn't getting started
+34512,965399393,6,Fri Dec 23 22:14:58 2022,8405938,completed,08:23:23,Said completed but seems didn't do BoTorch part
+51234,732693956,12,Thu Dec 22 10:03:45 2022,8396775,shortComplete,1-14:03:39,Job did not get past the first 36. no .rds
+51234,732693956,12,Sat Dec 24 10:13:23 2022,8408205,error,NA,Ran out of memory
+51234,732693956,12,Sun Dec 25 12:12:23 2022,8413043,shortComplete,05:20:14,Went from 2G to 3G on memory, quit before it finished
+51234,732693956,12,Sun Dec 25 23:01:32 2022,8414658,shortComplete,NA,I am trying a smaller version: seems like it's going to the end
+23451,888815265,12,Mon Dec 26 10:41:43 2022,8415347,shortComplete,NA,Went from 3G to 4G to see if memory is an issue. Got a node immediately: memory not necessarily an issue
+12345,720903897,6,Mon Dec 26 11:06:39 2022,8415564,shortComplete,NA,Last attempt at 4G. It quite when budget allocation to PIC was 0.97 which would have cost a lot of memory
+
+23451,888815265,12,Mon Dec 26 21:19:37 2022,8417483,running,4-05:34:20,Went from 4G to 128G: I looked at what memory was being used on mccouch02 and it seems to go up to 40G or so
+23456,467072277,12,Mon Dec 26 21:26:25 2022,8417487,running,6-11:03:27,Getting a second 12 cycle with higher memory
+62345,603970958,12,Mon Dec 26 21:30:03 2022,8417499,running,6-06:34:41,Failed ExitCode 1. BUT it looks like it completed... Getting a third 12 cycle with higher memory
+12345,720903897,6,Tue Dec 27 07:43:49 2022,8418057,running,3-11:28:49,Seeing how fast a 6 cycle will go with 128G
+45123,528066380,6,Tue Dec 27 07:52:53 2022,8418068,running,4-00:51:25,Doubling up the 6 cycle with 128G
+51234,732693956,12,Tue Dec 27 07:54:26 2022,8418069,running,4-00:50:59,Ran this one multiple times at lower memory
+22345,34455909,6,Wed Dec 28 20:02:15 2022,8422279,running,2-07:42:51,
+32345,202890772,6,Wed Dec 28 20:03:23 2022,8422280,running,3-18:21:35,Failed ExitCode 1 For some reason this one is not generating an optOutFile
+42345,970854781,6,Wed Dec 28 20:03:35 2022,8422281,running,2-07:22:33,
+52345,729146371,6,Wed Dec 28 20:03:44 2022,8422282,running,NA,
+11234,583464691,12,Wed Dec 28 20:07:40 2022,8422284,running,NA,
+21234,17715238,12,Wed Dec 28 20:08:34 2022,8422285,running,3-19:01:39,Failed ExitCode 1 BUT it looked like it completed
+6789,151555459,6,Thu Dec 29 11:08:45 2022,8424317,running,03:40:02,Testing the print of scheme parameters
+6123,371068231,6,Sat Dec 31 14:04:45 2022,8436979,running,NA,Do eight smlShortManyIter to make sure I get the same result... Preliminary time estimate of 20 days. 371068231 773630145 926231208 337245868 655082844 111318580 305583387 280132281
+6124,637500433,6,Sun Jan  1 11:18:00 2023,8438692,running,NA,Do two smlShortManyIter. Preliminary time estimate of 5 days. 637500433 472611820
+6125,633923509,6,Sun Jan  1 11:19:16 2023,8438693,running,NA,Do two smlShortManyIter. 633923509 442280202
+6126,149708502,6,Sun Jan  1 11:19:29 2023,8438694,running,NA,Do two smlShortManyIter. 149708502 866457770
+6789,151555459,6,Sun Jan  1 17:19:44 2023,8440024,running,NA,Replace 32345-202890772
+1234,113703412,12,Sun Jan  1 17:21:06 2023,8440025,running,NA,Replace 21234-17715238
+1111,465502641,6,Mon Jan  2 17:27:35 2023,8454060,running,NA,Testing >1 optimization per founder
+1112,784559811,6,Mon Jan  2 17:31:31 2023,-999,completed,NA,Oops
+6127,5502292,6,Tue Jan  3 10:12:41 2023,8456029,running,NA,Did not generate a directory in output
+6128,387748988,6,Tue Jan  3 10:13:55 2023,8456030,running,NA,Has directory in output
+6129,27823605,6,Tue Jan  3 10:14:06 2023,8456031,running,NA,Did not generate a direcory in output
+6120,933926427,6,Tue Jan  3 10:14:15 2023,8456032,running,NA,Has directory in output
+6127,5502292,6,Tue Jan  3 10:29:03 2023,8456076,running,NA,Canceled 8456029 and resubmitted this one
+6129,27823605,6,Tue Jan  3 10:30:59 2023,8456085,running,NA,Canceled 8456031 and resubmitted this one
+6789,151555459,6,Tue Jan  3 14:48:19 2023,8457249,running,NA,I messed up 2 previous 6's
+6780,92833062,6,Tue Jan  3 14:49:14 2023,8457251,running,NA,I messed up 2 previous 6's
+1234,113703412,12,Tue Jan  3 14:49:40 2023,8457254,running,NA,I messed up one previous 12
+6789,151555459,6,Tue Jan  3 14:56:46 2023,8457258,running,NA,Canceled 8457249 and resubmitted this one
