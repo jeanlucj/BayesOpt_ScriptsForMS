@@ -19,7 +19,7 @@ SDN CET PYT
 
 # Vector of number of entries used in each stage
 nEntries
-800 140 24
+997 174 30
 
 # Vector of number of reps used in each stage
 nReps
@@ -29,7 +29,7 @@ nReps
 nLocs
 1 2 3
 
-# Vector of error variances estimated from historical data 
+# Vector of error variances estimated from historical data
 errVars
 400 120 70
 
@@ -40,11 +40,11 @@ optiContEffPop
 
 # Number of breeding population progeny each cycle
 nBreedingProg
-800
+997
 
 # Number of genomic selection cycles per year in PIC
 nPopImpCycPerYear
-2
+1
 
 # Number of years back VDP trials for training
 # A higher number here will mean a larger TP, but also
@@ -52,8 +52,8 @@ nPopImpCycPerYear
 keepNTrainingCyc
 3
 
-# Number of cycles back of breeding individuals as 
-# parent candidates. If you put a number >1, then 
+# Number of cycles back of breeding individuals as
+# parent candidates. If you put a number >1, then
 # "older" individuals could be chosen as parents
 # Given optimal contributions, I don't see any down
 # side to having a number >1 (other than slower simulation)

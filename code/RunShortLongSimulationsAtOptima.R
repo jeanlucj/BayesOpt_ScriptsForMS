@@ -88,8 +88,17 @@ runBatchBSD <- function(batchBSD, percentage){
   return(batchResults)
 }#END runBatchBSD
 
-# For 6 cycles: 0.3874482 0.3870322 0.1624069 0.06311256
-# For 12 cycles: 0.2520365 0.3929344 0.2805345 0.07449453
+# I think I really need to run both the average and the all together to see
+# which comes out ahead.  They aren't so different for the 6 cycle optimum
+# but they are pretty different for the 12 cycle optimum
+# For 6 cycles analyzed all together: 0.4169595 0.4123836 0.15307223 0.01758467
+# nEntries: 920 152 4, nBreedingProg: 844
+# For 12 cycles analyzed all together: 0.2523531 0.3416312 0.38409934 0.02191636
+# nEntries: 762 382 5, nBreedingProg: 511
+# For 6 cycles: 0.3858742 0.4231775 0.1392178 0.05173058 [after 8 reps]
+# For 12 cycles: 0.2620301 0.3966589 0.2810439 0.06026706 [after 8 reps]
+# For 6 cycles: 0.3874482 0.3870322 0.1624069 0.06311256 [after 6 reps]
+# For 12 cycles: 0.2520365 0.3929344 0.2805345 0.07449453 [after 6 reps]
 # BUT you want to use each of these budgets for 12 cycles
 budg6Cyc <- c(0.3874482, 0.3870322, 0.1624069, 0.06311256)
 budg12Cyc <- c(0.2520365, 0.3929344, 0.2805345, 0.07449453)

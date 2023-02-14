@@ -1,9 +1,13 @@
-# Uh oh.  The two replicates of smlShrtMany are giving exactly the same thing
-# I will have to check if somehow I set the seed to the same thing twice
-# or if there was a duplication downstream.
+
 library(tidyverse)
+setwd("/Users/jj332/Documents/GitRepo/BayesOpt_ScriptsForMS")
 here::i_am("code/analyzeSmlShrtMany.R")
 setwd("/Users/jj332/Documents/simOut/bso/output/PostGrid")
+# Get information on outputs at Ceres
+has499Iter <- read_csv(here::here("output", "has499Iter.csv"))
+allSubSeed <- has499Iter %>% pull(subSeed) %>% unique
+
+# Get information on the outputs that I actually have
 allSml <- list.files(pattern="sml")
 # Parse allSml of this form 188690362_0_1036sml06PIC.rds
 where_ <- regexpr("_", allSml)
@@ -22,7 +26,14 @@ colnames(allRes) <- c("budgPIC", "budgSDN", "budgCET",
 allSml <- tibble(fileName=allSml, subSeed=subSeed,
                  optimRepl=optimRepl, nOptIter=nIter)
 allSml <- dplyr::bind_cols(allSml, allRes)
-allIter <- allSml %>% pull(nOptIter) %>% unique %>% sort
+allSml <- allSml %>% mutate(budgPYT = 1 - (budgPIC + budgSDN + budgCET))
+
+print("All the random seeds")
+hereSubSeed <- allSml %>% pull(subSeed) %>% unique
+print(hereSubSeed)
+print("Missing subSeeds")
+has499Iter %>% filter(!(subSeed %in% hereSubSeed)) %>%
+  pull(subSeed) %>% unique %>% print
 
 fitSubSeed <- lm(budgPIC ~ subSeed, data=allSml, subset=(nOptIter==1536))
 anova(fitSubSeed)
@@ -30,26 +41,35 @@ fitSubSeed <- lm(budgSDN ~ subSeed, data=allSml, subset=(nOptIter==1536))
 anova(fitSubSeed)
 fitSubSeed <- lm(budgCET ~ subSeed, data=allSml, subset=(nOptIter==1536))
 anova(fitSubSeed)
+fitSubSeed <- lm(budgPYT ~ subSeed, data=allSml, subset=(nOptIter==1536))
+anova(fitSubSeed)
 # Response: budgPIC
 #           Df   Sum Sq   Mean Sq F value Pr(>F)
-# subSeed   11 0.022027 0.0020025  0.6218 0.7802
-# Residuals 12 0.038646 0.0032205
+# subSeed   15 0.037751 0.0025167  0.8903 0.5868
+# Residuals 16 0.045229 0.0028268
 # Response: budgSDN
 #           Df   Sum Sq   Mean Sq F value    Pr(>F)
-# subSeed   11 0.176479 0.0160435   29.25 5.926e-07 ***
-# Residuals 12 0.006582 0.0005485
+# subSeed   15 0.181928 0.0121285    7.62 0.0001086 ***
+# Residuals 16 0.025467 0.0015917
 # Response: budgCET
 #           Df   Sum Sq   Mean Sq F value  Pr(>F)
-# subSeed   11 0.126047 0.0114588  3.6893 0.01692 *
-# Residuals 12 0.037271 0.0031059
+# subSeed   15 0.143559 0.0095706  2.8105 0.02413 *
+# Residuals 16 0.054484 0.0034053
+# Response: budgPYT
+#           Df    Sum Sq    Mean Sq F value Pr(>F)
+# subSeed   15 0.0137745 0.00091830  1.5915 0.1832
+# Residuals 16 0.0092322 0.00057701
 
 man <- manova(cbind(budgPIC, budgSDN, budgCET) ~ subSeed,
               data=allSml, subset=(nOptIter==1536))
 summary(man)
 #           Df Pillai approx F num Df den Df  Pr(>F)
-# subSeed   13 1.8616   1.7611     39     42 0.03699 *
-# Residuals 14
+# subSeed   15 1.8536   1.7246     45     48 0.03255 *
+# Residuals 16
 
+# There is evidence of difference by Founder pop.  It is pretty weak
+# If I remove Founder pops where there is some evidence of bad optimization
+# convergence, does that change the picture? Essentially, no. So leave them in
 allSml <- allSml %>% arrange(subSeed, optimRepl, nOptIter)
 allSml <- allSml %>% dplyr::mutate(diffPIC=budgPIC - lag(budgPIC))
 allSml <- allSml %>%
@@ -72,19 +92,20 @@ anova(fitSubSeed)
 fitSubSeed <- lm(budgCET ~ subSeed, data=goodConv, subset=(nOptIter==1536))
 anova(fitSubSeed)
 
+# After how many iterations of optimization does the Founder effect appear?
 library(lme4)
-varComp <- NULL
+approxF <- NULL
+allIter <- allSml %>% pull(nOptIter) %>% unique %>% sort
 for (nIter in allIter){
-  tst <- lmer(budgPIC ~ (1 | subSeed), data=allSml, subset=(nOptIter==nIter))
-  vc <- VarCorr(tst)
-  varComp <- rbind(varComp, c(attr(vc, "sc"), sqrt(vc$subSeed)))
+  man <- manova(cbind(budgPIC, budgSDN, budgCET) ~ subSeed,
+                data=allSml, subset=(nOptIter==nIter))
+  sman <- summary(man)
+  approxF <- c(approxF, sman$stats["subSeed", "approx F"])
 }
-maxVC <- max(varComp)
-plot(varComp[,1], ylim=c(0, maxVC), pch=16)
-points(varComp[,2], pch=16, col="dark green")
+plot(allIter, approxF, pch=16)
 
 ############# All Big below here ##################
-
+# Have to get rid of the b06 and b12
 setwd("/Users/jj332/Documents/simOut/bso/output/PostGrid")
 allBig <- list.files(pattern="big")
 # Parse allBig of this form 188690362_0_1036sml06PIC.rds
@@ -117,8 +138,9 @@ for (f in allBig){
 colnames(allRes) <- c("budgPIC", "budgSDN", "budgCET",
                       "maxPredGain", "postVarAtMax")
 allBig <- dplyr::bind_cols(parseAllBig, allRes)
+allBigLast <- allBig %>% dplyr::filter(nOptIter == 336) %>% arrange(nCyc)
 allIter <- allBig %>% pull(nOptIter) %>% unique %>% sort
-
+allBig %>% pull(nOptIter) %>% table
 bigMeans <- allBig %>% group_by(nOptIter, nCyc) %>%
   summarize(
     meanPIC=mean(budgPIC),
