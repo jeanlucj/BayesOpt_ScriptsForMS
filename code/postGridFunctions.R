@@ -17,9 +17,9 @@ n_stages <- 3
 # Remove budgets that do not meet bound or ratio constraints
 # Reduce the number of budgets by clustering: one budget per cluster
 # Because this is for BoTorch, delete the last budget
-makeGridForTernary <- function(picBudget=0.3924, justVDP=F, nSteps=20){
+makeGridForTernary <- function(picBudget=0.3924, justVDP=F, nSteps=20, doMax=T){
   source(here::here("code", "breedSchemeInitialize.R"))
-
+  if (!exists("n_stages")) n_stages <- bsd$nStages
   # Set the lower and upper bounds
   # budget_constraints set in breedSchemeInitialize.R
   lower <- numeric(n_stages+1)
@@ -43,9 +43,13 @@ makeGridForTernary <- function(picBudget=0.3924, justVDP=F, nSteps=20){
   }
 
   # Make grid
-  bsd$minPercentage <- lower
-  bsd$maxPercentage <- upper
-  bsd$percentageStep <- (upper - lower) / nSteps
+  if (doMax){
+    bsd$minPercentage <- lower
+    bsd$maxPercentage <- upper
+    bsd$percentageStep <- (upper - lower) / nSteps
+  } else{
+    bsd$percentageStep <- (bsd$maxPercentage - bsd$minPercentage) / nSteps
+  }
   percGrid <- BreedSimCost::makeGrid(bsd, justVDP)
   percMat <- t(matrix(unlist(percGrid), nrow=length(percGrid[[1]])))
   if (justVDP){
@@ -64,6 +68,22 @@ makeGridForTernary <- function(picBudget=0.3924, justVDP=F, nSteps=20){
   # Send the grid points to BoTorch
   budgets <- kmCtr[,-4]
   saveRDS(budgets, here::here("data", "predPoints.rds"))
+  return(budgets)
+}
+# Just for the record, BreedSimCost::makeGrid
+makeGrid <- function (bsd, justVDP = F){
+  if (justVDP) strt <- 2 else strt <- 1
+  percList <- as.list(seq(from = bsd$minPercentage[strt],
+                          to = bsd$maxPercentage[strt],
+                          by = bsd$percentageStep[strt]))
+  for (stage in setdiff(1 + 1:bsd$nStages, strt)){
+    newPerc <- seq(from = bsd$minPercentage[stage],
+                   to = bsd$maxPercentage[stage],
+                   by = bsd$percentageStep[stage])
+    percList <- mapply(c, rep(percList, each = length(newPerc)),
+                       rep(newPerc, length(percList)), SIMPLIFY = F)
+  }
+  budgets <- lapply(percList, function(v) return(v/sum(v)))
   return(budgets)
 }
 

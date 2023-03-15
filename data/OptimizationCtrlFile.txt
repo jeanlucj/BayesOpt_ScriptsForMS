@@ -24,9 +24,13 @@ nCores
 # step to avoid the grid search doing a LOT of simulations
 minPercentage
 0.10 0.20 0.10 0.10
+# 0.22 0.33 0.10 0.02 For standard close all four budgets
+# 0.22 0.23 0.10 0.02 For justVDP close (just VDP budgets)
 
 maxPercentage
 0.70 0.80 0.40 0.40
+# 0.42 0.43 0.40 0.08 For standard close all four budgets
+# 0.42 0.53 0.50 0.22 For justVDP close (just VDP budgets)
 
 percentageStep
 0.30 0.30 0.30 0.30

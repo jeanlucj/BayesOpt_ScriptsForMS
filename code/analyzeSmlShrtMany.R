@@ -1,14 +1,13 @@
-
 library(tidyverse)
 setwd("/Users/jj332/Documents/GitRepo/BayesOpt_ScriptsForMS")
 here::i_am("code/analyzeSmlShrtMany.R")
-setwd("/Users/jj332/Documents/simOut/bso/output/PostGrid")
+
 # Get information on outputs at Ceres
 has499Iter <- read_csv(here::here("output", "has499Iter.csv"))
 allSubSeed <- has499Iter %>% pull(subSeed) %>% unique
 
 # Get information on the outputs that I actually have
-allSml <- list.files(pattern="sml")
+allSml <- list.files(path=here::here("output", "PostGrid"), pattern="sml")
 # Parse allSml of this form 188690362_0_1036sml06PIC.rds
 where_ <- regexpr("_", allSml)
 wheres <- regexpr("s", allSml)
@@ -18,7 +17,7 @@ nIter <- as.numeric(substring(allSml, where_ + 3, wheres - 1))
 
 allRes <- NULL
 for (f in allSml){
-  res <- readRDS(f)
+  res <- readRDS(here::here("output", "PostGrid", f))
   allRes <- rbind(allRes, c(res$bestBudget, res$maxPredGain, res$postVarAtMax))
 }
 colnames(allRes) <- c("budgPIC", "budgSDN", "budgCET",
@@ -26,7 +25,9 @@ colnames(allRes) <- c("budgPIC", "budgSDN", "budgCET",
 allSml <- tibble(fileName=allSml, subSeed=subSeed,
                  optimRepl=optimRepl, nOptIter=nIter)
 allSml <- dplyr::bind_cols(allSml, allRes)
-allSml <- allSml %>% mutate(budgPYT = 1 - (budgPIC + budgSDN + budgCET))
+allSml <- allSml %>% mutate(budgPYT = 1 - (budgPIC + budgSDN + budgCET)) %>%
+  relocate(budgPYT, .after=budgCET) %>%
+  arrange(subSeed, optimRepl, nOptIter)
 
 print("All the random seeds")
 hereSubSeed <- allSml %>% pull(subSeed) %>% unique
@@ -66,11 +67,14 @@ summary(man)
 #           Df Pillai approx F num Df den Df  Pr(>F)
 # subSeed   15 1.8536   1.7246     45     48 0.03255 *
 # Residuals 16
+summary(man, test="Wilks")
+#           Df    Wilks approx F num Df den Df   Pr(>F)
+# subSeed   15 0.029978   2.1246     45 42.371 0.007449 **
+# Residuals 16
 
 # There is evidence of difference by Founder pop.  It is pretty weak
 # If I remove Founder pops where there is some evidence of bad optimization
 # convergence, does that change the picture? Essentially, no. So leave them in
-allSml <- allSml %>% arrange(subSeed, optimRepl, nOptIter)
 allSml <- allSml %>% dplyr::mutate(diffPIC=budgPIC - lag(budgPIC))
 allSml <- allSml %>%
   dplyr::mutate(diffPIC=if_else(nOptIter==36, as.numeric(NA), diffPIC))
@@ -100,153 +104,12 @@ for (nIter in allIter){
   man <- manova(cbind(budgPIC, budgSDN, budgCET) ~ subSeed,
                 data=allSml, subset=(nOptIter==nIter))
   sman <- summary(man)
+  # sman <- summary(man, test="Wilks")
   approxF <- c(approxF, sman$stats["subSeed", "approx F"])
 }
-plot(allIter, approxF, pch=16)
-
-############# All Big below here ##################
-# Have to get rid of the b06 and b12
-setwd("/Users/jj332/Documents/simOut/bso/output/PostGrid")
-allBig <- list.files(pattern="big")
-# Parse allBig of this form 188690362_0_1036sml06PIC.rds
-where_ <- gregexpr("_", allBig)
-whereb <- regexpr("b", allBig)
-parseAllBig <- tibble()
-for (i in 1:length(allBig)){
-  w_ <- where_[[i]]
-  ss <- substring(allBig[i], 1, w_[1] - 1)
-  if (length(w_) > 1){
-    opr <- substring(allBig[i], w_[1] + 1, w_[1] + 1)
-    w_ <- w_[2]
-  } else opr <- "0"
-  ni <- as.numeric(substring(allBig[i], w_ + 1, whereb[i] - 1))
-  nc <- substring(allBig[i], whereb[i] + 3, whereb[i] + 4)
-  parseAllBig <- dplyr::bind_rows(parseAllBig,
-                                  tibble(fileName=allBig[i],
-                                         subSeed=ss,
-                                         optimRepl=opr,
-                                         nOptIter=ni,
-                                         nCyc=nc)
-                                  )
-}
-
-allRes <- NULL
-for (f in allBig){
-  res <- readRDS(f)
-  allRes <- rbind(allRes, c(res$bestBudget, res$maxPredGain, res$postVarAtMax))
-}
-colnames(allRes) <- c("budgPIC", "budgSDN", "budgCET",
-                      "maxPredGain", "postVarAtMax")
-allBig <- dplyr::bind_cols(parseAllBig, allRes)
-allBigLast <- allBig %>% dplyr::filter(nOptIter == 336) %>% arrange(nCyc)
-allIter <- allBig %>% pull(nOptIter) %>% unique %>% sort
-allBig %>% pull(nOptIter) %>% table
-bigMeans <- allBig %>% group_by(nOptIter, nCyc) %>%
-  summarize(
-    meanPIC=mean(budgPIC),
-    meanSDN=mean(budgSDN),
-    meanCET=mean(budgCET),
-    meanPYT=mean(1-budgPIC-budgSDN-budgCET),
-    meanGain=mean(maxPredGain),
-    meanVar=mean(postVarAtMax),
-    sdPIC=sd(budgPIC),
-    sdSDN=sd(budgSDN),
-    sdCET=sd(budgCET),
-    sdPYT=sd(budgPIC+budgSDN+budgCET),
-    sdGain=sd(maxPredGain),
-    sdVar=sd(postVarAtMax),
-  )
-
-yRange <- bigMeans %>% ungroup %>%
-  select(contains("mean")) %>% select(-meanGain, -meanVar) %>%
-  range
-
-bm06 <- bigMeans %>% filter(nCyc=="06")
-pdf(here::here("output", "Allocation06Cyc.pdf"))
-plot(bm06$nOptIter, bm06$meanPIC, pch=16, ylim=yRange,
-     xlab="Optimization iteration", ylab="Budget allocation",
-     main="Budget allocation for a 6 cycle horizon",
-     cex=1.3, cex.lab=1.3, cex.axis=1.3)
-points(bm06$nOptIter, bm06$meanSDN, pch=16, col="dark red", cex=1.3)
-points(bm06$nOptIter, bm06$meanCET, pch=16, col="dark green", cex=1.3)
-points(bm06$nOptIter, bm06$meanPYT, pch=16, col="blue", cex=1.3)
-legend(280, 0.34, c("PIC", "SDN", "CET", "PYT"), pch=16,
-       col=c("black", "dark red", "dark green", "blue"),
-       cex=1.3)
+pdf(here::here("output", "figures", "FounderEffectApproxFoverIterations.pdf"))
+plot(allIter, approxF, pch=16, xlab="Optimization iteration", ylab="Pillai test approx. F stat.", cex.lab=1.3, cex.axis=1.3, cex=1.3)
 dev.off()
-
-bm12 <- bigMeans %>% filter(nCyc=="12")
-pdf(here::here("output", "Allocation12Cyc.pdf"))
-plot(bm12$nOptIter, bm12$meanPIC, pch=16, ylim=yRange,
-     xlab="Optimization iteration", ylab="Budget allocation",
-     main="Budget allocation for a 12 cycle horizon",
-     cex=1.3, cex.lab=1.3, cex.axis=1.3)
-points(bm12$nOptIter, bm12$meanSDN, pch=16, col="dark red", cex=1.3)
-points(bm12$nOptIter, bm12$meanCET, pch=16, col="dark green", cex=1.3)
-points(bm12$nOptIter, bm12$meanPYT, pch=16, col="blue", cex=1.3)
-legend(280, 0.21, c("PIC", "SDN", "CET", "PYT"), pch=16,
-       col=c("black", "dark red", "dark green", "blue"),
-       cex=1.3)
-dev.off()
-
-# Plot the difference in the means between 6-cycle versus 12-cycle simulation
-# The difference seems to have more or less stabilized by iteration 200
-picDiff <- bigMeans %>% filter(nCyc=="06") %>% pull(meanPIC) -
-  bigMeans %>% filter(nCyc=="12") %>% pull(meanPIC)
-sdnDiff <- bigMeans %>% filter(nCyc=="06") %>% pull(meanSDN) -
-  bigMeans %>% filter(nCyc=="12") %>% pull(meanSDN)
-cetDiff <- bigMeans %>% filter(nCyc=="06") %>% pull(meanCET) -
-  bigMeans %>% filter(nCyc=="12") %>% pull(meanCET)
-pytDiff <- bigMeans %>% filter(nCyc=="06") %>% pull(meanPYT) -
-  bigMeans %>% filter(nCyc=="12") %>% pull(meanPYT)
-budgDiffs <- tibble(nOptIter=36+seq(0, 300, 50), picDiff=picDiff,
-                    sdnDiff=sdnDiff, cetDiff=cetDiff, pytDiff=pytDiff)
-rangeDiff <- budgDiffs %>% dplyr::select(-nOptIter) %>% unlist %>% range
-plot(budgDiffs$nOptIter, budgDiffs$picDiff, pch=16, ylim=rangeDiff)
-points(budgDiffs$nOptIter, budgDiffs$sdnDiff, pch=16, col="dark red")
-points(budgDiffs$nOptIter, budgDiffs$cetDiff, pch=16, col="dark green")
-points(budgDiffs$nOptIter, budgDiffs$pytDiff, pch=16, col="blue")
-
-# Plot the std dev of the difference between 6-cycle versus 12-cycle simulation
-# The take to 250 iterations to stabilize.  They do not go to zero which again
-# suggests a founder effect: optimizations on different founder populations do
-# not converge to the same budgets
-picSD <- ((bigMeans %>% filter(nCyc=="06") %>% pull(sdPIC))^2 +
-  (bigMeans %>% filter(nCyc=="12") %>% pull(sdPIC))^2) %>% sqrt
-sdnSD <- ((bigMeans %>% filter(nCyc=="06") %>% pull(sdSDN))^2 +
-  (bigMeans %>% filter(nCyc=="12") %>% pull(sdSDN))^2) %>% sqrt
-cetSD <- ((bigMeans %>% filter(nCyc=="06") %>% pull(sdCET))^2 +
-            (bigMeans %>% filter(nCyc=="12") %>% pull(sdCET))^2) %>% sqrt
-pytSD <- ((bigMeans %>% filter(nCyc=="06") %>% pull(sdPYT))^2 +
-            (bigMeans %>% filter(nCyc=="12") %>% pull(sdPYT))^2) %>% sqrt
-budgDiffs <- budgDiffs %>% mutate(picSD=picSD,
-                    sdnSD=sdnSD, cetSD=cetSD, pytSD=pytSD)
-rangeDiff <- budgDiffs %>% dplyr::select(contains("SD", ignore.case=F)) %>%
-  unlist %>% range
-rangeDiff[1] <- 0
-plot(budgDiffs$nOptIter, budgDiffs$picSD, pch=16, ylim=rangeDiff)
-points(budgDiffs$nOptIter, budgDiffs$sdnSD, pch=16, col="dark red")
-points(budgDiffs$nOptIter, budgDiffs$cetSD, pch=16, col="dark green")
-points(budgDiffs$nOptIter, budgDiffs$pytSD, pch=16, col="blue")
-
-# Collect the p-values over iterations to see when it becomes significant
-# I should just collect the effect to see when it stabilizes...
-# And that I can just get from bigMeans
-pvalOverIter <- NULL
-for (nIter in allIter){
-  pic <- lm(budgPIC ~ nCyc, data=allBig, subset=(nOptIter==nIter))
-  sdn <- lm(budgSDN ~ nCyc, data=allBig, subset=(nOptIter==nIter))
-  cet <- lm(budgCET ~ nCyc, data=allBig, subset=(nOptIter==nIter))
-  man <- manova(cbind(budgPIC, budgSDN, budgCET) ~ nCyc,
-                data=allBig, subset=(nOptIter==nIter))
-  pvalOverIter <- rbind(pvalOverIter,
-                        c(summary(pic)$coefficients[2, 1],
-                          summary(sdn)$coefficients[2, 1],
-                          summary(cet)$coefficients[2, 1],
-                          summary(man)$stats[1, 6]))
-}
-
-plot()
 
 #########################################################
 # Everything below here is from Oct 2021

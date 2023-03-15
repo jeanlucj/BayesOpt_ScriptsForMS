@@ -19,7 +19,8 @@ SDN CET PYT
 
 # Vector of number of entries used in each stage
 nEntries
-997 174 30
+800 140 24
+# 997 174 30
 
 # Vector of number of reps used in each stage
 nReps
@@ -40,11 +41,12 @@ optiContEffPop
 
 # Number of breeding population progeny each cycle
 nBreedingProg
-997
+800
+# 997
 
 # Number of genomic selection cycles per year in PIC
 nPopImpCycPerYear
-1
+2
 
 # Number of years back VDP trials for training
 # A higher number here will mean a larger TP, but also
