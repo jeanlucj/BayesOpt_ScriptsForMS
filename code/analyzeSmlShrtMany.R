@@ -3,7 +3,7 @@ setwd("/Users/jj332/Documents/GitRepo/BayesOpt_ScriptsForMS")
 here::i_am("code/analyzeSmlShrtMany.R")
 
 # Get information on outputs at Ceres
-has499Iter <- read_csv(here::here("output", "has499Iter.csv"))
+has499Iter <- read_csv(here::here("data", "has499Iter.csv"))
 allSubSeed <- has499Iter %>% pull(subSeed) %>% unique
 
 # Get information on the outputs that I actually have
@@ -110,6 +110,13 @@ for (nIter in allIter){
 pdf(here::here("output", "figures", "FounderEffectApproxFoverIterations.pdf"))
 plot(allIter, approxF, pch=16, xlab="Optimization iteration", ylab="Pillai test approx. F stat.", cex.lab=1.3, cex.axis=1.3, cex=1.3)
 dev.off()
+
+######################################
+# Make contour plots for all initnums
+######################################
+for (inum in allSubSeed){
+  dummy <- contourMinusSD(inum, repl=0:1, knn=4)
+}
 
 #########################################################
 # Everything below here is from Oct 2021

@@ -108,9 +108,9 @@ budg6Cyc <- c(0.3858742, 0.4231775, 0.1392178, 0.05173058) # 8 reps
 budg12Cyc <- c(0.2620301, 0.3966589, 0.2810439, 0.06026706) # 8 reps
 budgP1Cyc6 <- c(0.3235522, 0.4163751, 0.2357820, 0.02429063) # Used
 budgP1Cyc12 <- c(0.3836027, 0.4179224, 0.1791765, 0.01929836) # Used
-
 budg6Cyc <- c(0.3874482, 0.3870322, 0.1624069, 0.06311256)
 budg12Cyc <- c(0.2520365, 0.3929344, 0.2805345, 0.07449453)
+budgSml <- c(0.36805244, 0.33554188, 0.19840319, 0.09800249)
 perc <- budg6Cyc
 tstAgain <- runBatchBSD(burnedInPops, percentage=perc)
 saveRDS(here::here("output", paste0("tstAgain", perc[1], ".rds")))

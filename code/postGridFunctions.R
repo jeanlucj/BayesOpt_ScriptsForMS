@@ -119,9 +119,9 @@ getPost <- function(n_iter, init_num, pred_points=0){
 # Function to return values for the contour plot
 # as a function of budget allocation
 #' @param a, b, and c are all vectors
+#' @param knn is how many nearest neighbors to use
 library(Ternary)
-ternaryValFunc <- function(a, b, c, justVDP=F){
-  knn <- 1
+ternaryValFunc <- function(a, b, c, justVDP=F, knn=1, postGrid=postGrid){
   xyz <- postGrid$predBudgets
   if (justVDP){
     xyz <- cbind(xyz[,2:3], 1 - rowSums(xyz[,1:3]))
@@ -131,8 +131,118 @@ ternaryValFunc <- function(a, b, c, justVDP=F){
   }
   abc <- cbind(a, b, c)
   oneABC <- function(abc){
+    # Manhattan distance to the prediction points in xyz
     xyzDist <- apply(xyz, 1, function(v) sum(abs(v - abc)))
-    return(mean(postGrid$predGains[order(xyzDist)[1:knn]]))
+    # Weighted mean to a number of nearest neighbors
+    tv <- weighted.mean(postGrid$predGains[order(xyzDist)[1:knn]],
+                        1 / xyzDist[order(xyzDist)[1:knn]])
+    return(tv)
   }
   return(apply(abc, 1, oneABC))
 }
+
+# Function: take a file name, get the data, draw a ternary plot, make contour
+# one tenth of an SD below the max.  See postGrid.R for the original version
+contourMinusSD <- function(initnum=188690362, repl=0, plotName=NULL, knn=3,
+                           allContours=F){
+  require(Ternary)
+
+  # Analyzing small test again
+  smlTA <- getTestAgain(picBudgString="0.36805244")
+  varCandMeanSD <- dplyr::last(smlTA$parmsSE$varCandMeanse)*20 # 5.107004
+
+  if (is.null(plotName)){
+    replTxt <- repl
+    if (length(repl) > 1) replTxt <- NULL
+    plotName <- paste0(initnum, "_", replTxt, "_smlTernary.pdf")
+  }
+  pdf(here::here("output", "_PubOut", "figures", plotName),
+      width=6*length(repl), height=6)
+  par(mfcol=c(1, length(repl)))
+  par(mar = rep(0.2, 4))
+  for (i in repl){
+    # Construct name 188690362_0_1036sml06PIC.rds
+    fileName <- paste0(initnum, "_", i, "_1536sml06PIC.rds")
+    pg <- readRDS(here::here("output", "PostGrid", fileName))
+    maxPost <- pg$bestBudget[1,]
+    maxPost[3] <- 1 - sum(maxPost[1:2])
+
+    # Make a new function that encapsulates the necessary parameters
+    tvf <- function(a, b, c) return(ternaryValFunc(a, b, c,
+                                    justVDP=F, knn=knn, postGrid=pg))
+    values <- Ternary::TernaryPointValues(tvf, resolution = 36L)
+    zlim <- round(range(values["z",]), 2)
+    Ternary::TernaryPlot(atip=paste(zlim, collapse=" "),
+                         alab = 'PIC', blab = 'SDN', clab = 'CET+PYT',
+                         lab.cex=1.3, axis.cex=1.3)
+    Ternary::ColourTernary(values)
+    Ternary::AddToTernary(points, maxPost, pch = 16, cex = 2.2, col="red")
+    contourLevel <- pg$maxPredGain - varCandMeanSD/5
+    if (allContours){
+      Ternary::TernaryContour(tvf, resolution = 36L)
+    } else{
+      Ternary::TernaryContour(tvf, resolution = 36L, levels=contourLevel,
+                              labels="")
+    }
+  }
+  dev.off()
+}
+
+# This is a bit nuts, but I have to make a special function for the mean
+# across replications if I am to be able to draw the contour
+has499Iter <- read_csv(here::here("data", "has499Iter.csv"))
+allSubSeed <- has499Iter %>% pull(subSeed) %>% unique
+
+allPG <- list()
+for (initnum in allSubSeed){
+  for (i in 0:1){
+    # Construct name 188690362_0_1036sml06PIC.rds
+    fileName <- paste0(initnum, "_", i, "_1536sml06PIC.rds")
+    pg <- readRDS(here::here("output", "PostGrid", fileName))
+    allPG <- c(allPG, list(pg))
+  }
+}
+allMaxPreGain <- sapply(allPG, function(pg) return(pg$maxPredGain))
+maxPredGain <- mean(allMaxPredGain)
+allBestBudget <- sapply(allPG, function(pg) return(pg$bestBudget))
+allBestBudget <- t(rbind(allBestBudget[1:2,], 1 - colSums(allBestBudget[1:2,])))
+bestBudget <- colMeans(allBestBudget)
+
+tvfMean <- function(a, b, c, apg){
+  knn <- 3
+  abc <- cbind(a, b, c)
+  onePG <- function(postGrid, abc){
+    xyz <- postGrid$predBudgets
+    xyz <- cbind(xyz[,1:2], 1 - rowSums(xyz[,1:2]))
+    oneABC <- function(abc){
+      # Manhattan distance to the prediction points in xyz
+      xyzDist <- apply(xyz, 1, function(v) sum(abs(v - abc)))
+      # Weighted mean to a number of nearest neighbors
+      tv <- weighted.mean(postGrid$predGains[order(xyzDist)[1:knn]],
+                          1 / xyzDist[order(xyzDist)[1:knn]])
+      return(tv)
+    }
+    return(apply(abc, 1, oneABC))
+  }
+  return(rowMeans(sapply(apg, FUN=onePG, abc=abc)))
+}
+
+# Analyzing small test again
+smlTA <- getTestAgain(picBudgString="0.36805244")
+varCandMeanSD <- dplyr::last(smlTA$parmsSE$varCandMeanse)*20 # 5.107004
+
+plotName <- "___smlTernary.pdf"
+pdf(here::here("output", "_PubOut", "figures", plotName),
+    width=6, height=6)
+par(mar = rep(0.2, 4))
+values <- Ternary::TernaryPointValues(tvfMean, resolution = 36L, apg=allPG)
+# WARNING: what's commented out below has to be defined
+Ternary::TernaryPlot(alab = 'PIC', blab = 'SDN', clab = 'CET+PYT',
+                     lab.cex=1.3, axis.cex=1.3)
+Ternary::ColourTernary(values)
+Ternary::AddToTernary(points, bestBudget, pch = 16, cex = 2.2, col="red")
+contourLevel <- maxPredGain - (4:6)*(varCandMeanSD/20)
+tvf <- function(a, b, c) return(tvfMean(a, b, c, apg=allPG))
+Ternary::TernaryContour(tvf, resolution = 36L,
+                        levels=contourLevel, labels=c("0.20", "0.25", "0.3"))
+dev.off()
